@@ -111,7 +111,7 @@ def _blending_types(index):
 bpy.types.Material.THREE_blending_type = EnumProperty(
     name="Blending type",
     description="Blending type",
-    items=[_blending_types(x) for x in range(5)],
+    items=[_blending_types(x) for x in range(6)],
     default=constants.BLENDING_TYPES.NORMAL)
 
 bpy.types.Material.THREE_depth_write = BoolProperty(default=True)
@@ -362,6 +362,10 @@ def restore_export_settings(properties, settings):
         constants.PRECISION,
         constants.EXPORT_OPTIONS[constants.PRECISION])
 
+    properties.option_custom_properties = settings.get(
+        constants.CUSTOM_PROPERTIES,
+        constants.EXPORT_OPTIONS[constants.CUSTOM_PROPERTIES])
+
     properties.option_logging = settings.get(
         constants.LOGGING,
         constants.EXPORT_OPTIONS[constants.LOGGING])
@@ -374,9 +378,13 @@ def restore_export_settings(properties, settings):
         constants.INDENT,
         constants.EXPORT_OPTIONS[constants.INDENT])
 
-    properties.option_copy_textures = settings.get(
-        constants.COPY_TEXTURES,
-        constants.EXPORT_OPTIONS[constants.COPY_TEXTURES])
+    properties.option_export_textures = settings.get(
+        constants.EXPORT_TEXTURES,
+        constants.EXPORT_OPTIONS[constants.EXPORT_TEXTURES])
+
+    properties.option_embed_textures = settings.get(
+        constants.EMBED_TEXTURES,
+        constants.EXPORT_OPTIONS[constants.EMBED_TEXTURES])
 
     properties.option_texture_folder = settings.get(
         constants.TEXTURE_FOLDER,
@@ -426,6 +434,10 @@ def restore_export_settings(properties, settings):
         constants.KEYFRAMES,
         constants.EXPORT_OPTIONS[constants.KEYFRAMES])
 
+    properties.option_bake_keyframes = settings.get(
+        constants.BAKE_KEYFRAMES,
+        constants.EXPORT_OPTIONS[constants.BAKE_KEYFRAMES])
+
     properties.option_frame_step = settings.get(
         constants.FRAME_STEP,
         constants.EXPORT_OPTIONS[constants.FRAME_STEP])
@@ -464,10 +476,12 @@ def set_settings(properties):
         constants.SCALE: properties.option_scale,
         constants.ENABLE_PRECISION: properties.option_round_off,
         constants.PRECISION: properties.option_round_value,
+        constants.CUSTOM_PROPERTIES: properties.option_custom_properties,
         constants.LOGGING: properties.option_logging,
         constants.COMPRESSION: properties.option_compression,
         constants.INDENT: properties.option_indent,
-        constants.COPY_TEXTURES: properties.option_copy_textures,
+        constants.EXPORT_TEXTURES: properties.option_export_textures,
+        constants.EMBED_TEXTURES: properties.option_embed_textures,
         constants.TEXTURE_FOLDER: properties.option_texture_folder,
 
         constants.SCENE: properties.option_export_scene,
@@ -481,6 +495,7 @@ def set_settings(properties):
         constants.BLEND_SHAPES: properties.option_blend_shape,
         constants.ANIMATION: properties.option_animation_skeletal,
         constants.KEYFRAMES: properties.option_keyframes,
+        constants.BAKE_KEYFRAMES: properties.option_bake_keyframes,
         constants.FRAME_STEP: properties.option_frame_step,
         constants.FRAME_INDEX_AS_TIME: properties.option_frame_index_as_time,
         constants.INFLUENCES_PER_VERTEX: properties.option_influences
@@ -521,6 +536,10 @@ def animation_options():
 
     return anim
 
+def resolve_conflicts(self, context):
+    if(not self.option_export_textures):
+        self.option_embed_textures = False;
+
 class ExportThree(bpy.types.Operator, ExportHelper):
     """Class that handles the export properties"""
 
@@ -537,7 +556,7 @@ class ExportThree(bpy.types.Operator, ExportHelper):
 
     option_faces = BoolProperty(
         name="Faces",
-        description="Export faces",
+        description="Export faces (Geometry only)",
         default=constants.EXPORT_OPTIONS[constants.FACES])
 
     option_normals = BoolProperty(
@@ -567,7 +586,7 @@ class ExportThree(bpy.types.Operator, ExportHelper):
 
     option_face_materials = BoolProperty(
         name="Face Materials",
-        description="Face mapping materials",
+        description="Face mapping materials (Geometry only)",
         default=constants.EXPORT_OPTIONS[constants.FACE_MATERIALS])
 
     option_maps = BoolProperty(
@@ -622,11 +641,16 @@ class ExportThree(bpy.types.Operator, ExportHelper):
         default=constants.EXPORT_OPTIONS[constants.ENABLE_PRECISION])
 
     option_round_value = IntProperty(
-        name="Precision",
+        name="",
         min=0,
         max=16,
         description="Floating point precision",
         default=constants.EXPORT_OPTIONS[constants.PRECISION])
+
+    option_custom_properties = BoolProperty(
+        name="Custom Properties",
+        description="Export custom properties as userData",
+        default=False)
 
     logging_types = [
         (constants.DISABLED, constants.DISABLED, constants.DISABLED),
@@ -665,10 +689,16 @@ class ExportThree(bpy.types.Operator, ExportHelper):
         description="Embed animation data with the geometry data",
         default=constants.EXPORT_OPTIONS[constants.EMBED_ANIMATION])
 
-    option_copy_textures = BoolProperty(
-        name="Copy textures",
-        description="Copy textures",
-        default=constants.EXPORT_OPTIONS[constants.COPY_TEXTURES])
+    option_export_textures = BoolProperty(
+        name="Export textures",
+        description="Export textures",
+        default=constants.EXPORT_OPTIONS[constants.EXPORT_TEXTURES],
+        update=resolve_conflicts)
+
+    option_embed_textures = BoolProperty(
+        name="Embed textures",
+        description="Embed base64 textures in .json",
+        default=constants.EXPORT_OPTIONS[constants.EMBED_TEXTURES])
 
     option_texture_folder = StringProperty(
         name="Texture folder",
@@ -711,6 +741,11 @@ class ExportThree(bpy.types.Operator, ExportHelper):
         description="Export animation (keyframes)",
         default=constants.EXPORT_OPTIONS[constants.KEYFRAMES])
 
+    option_bake_keyframes = BoolProperty(
+        name="Bake keyframe animation",
+        description="Bake keyframe animation each frame step",
+        default=constants.EXPORT_OPTIONS[constants.BAKE_KEYFRAMES])
+
     option_frame_index_as_time = BoolProperty(
         name="Frame index as time",
         description="Use (original) frame index as frame time",
@@ -744,6 +779,7 @@ class ExportThree(bpy.types.Operator, ExportHelper):
         default=2)
 
     def invoke(self, context, event):
+        
         settings = context.scene.get(constants.EXPORT_SETTINGS_KEY)
         if settings:
             try:
@@ -772,6 +808,7 @@ class ExportThree(bpy.types.Operator, ExportHelper):
         :param context:
 
         """
+
         if not self.properties.filepath:
             raise Exception("filename not set")
 
@@ -796,153 +833,190 @@ class ExportThree(bpy.types.Operator, ExportHelper):
         :param context:
 
         """
+
+        using_geometry = self.option_geometry_type == constants.GEOMETRY
+
         layout = self.layout
 
+        ## Scene {
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
+
+        row.label(text="SCENE", icon="SCENE_DATA")
+
+        row = box.row()
+        row.prop(self.properties, 'option_export_scene')
+        row.prop(self.properties, 'option_materials')
+
+        #row = box.row()
+        #row.prop(self.properties, 'option_embed_geometry')
+
+        row = box.row()
+        row.prop(self.properties, 'option_lights')
+        row.prop(self.properties, 'option_cameras')
+
+        row = box.row()
+        row.prop(self.properties, 'option_hierarchy')
+        ## }
+
+        layout.separator()
+
         ## Geometry {
-        row = layout.row()
-        row.label(text="GEOMETRY:")
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
 
-        row = layout.row()
+        row.label(text="GEOMETRY", icon="MESH_DATA")
+
+        row = box.row()
+        row.prop(self.properties, 'option_geometry_type')
+
+        row = box.row()
+        row.prop(self.properties, 'option_index_type')
+
+        row = box.row()
         row.prop(self.properties, 'option_vertices')
-        row.prop(self.properties, 'option_faces')
+        col = row.column()
+        col.prop(self.properties, 'option_faces')
+        col.enabled = using_geometry
 
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_normals')
         row.prop(self.properties, 'option_uv_coords')
 
-        row = layout.row()
-        row.prop(self.properties, 'option_bones')
-        row.prop(self.properties, 'option_skinning')
-
-        row = layout.row()
-        row.prop(self.properties, 'option_extra_vgroups')
-
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_apply_modifiers')
 
-        row = layout.row()
-        row.prop(self.properties, 'option_geometry_type')
-
-        row = layout.row()
-        row.prop(self.properties, 'option_index_type')
-
+        row = box.row()
+        row.prop(self.properties, 'option_extra_vgroups')
+        row.enabled = not using_geometry
         ## }
 
         layout.separator()
 
         ## Materials {
-        row = layout.row()
-        row.label(text="- Shading:")
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
+        row.label(text="MATERIAL", icon="MATERIAL_DATA")
 
-        row = layout.row()
-        row.prop(self.properties, 'option_face_materials')
-
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_colors')
-
-        row = layout.row()
         row.prop(self.properties, 'option_mix_colors')
+
+        row = box.row()
+        row.prop(self.properties, 'option_face_materials')
+        row.enabled = using_geometry
+        ## }
+
+        layout.separator()
+
+        ## Textures {
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
+
+        row.label(text="TEXTURE", icon="TEXTURE_DATA")
+
+        row = box.row()
+        row.prop(self.properties, 'option_maps')
+        row.prop(self.properties, 'option_export_textures')
+
+        row = box.row()
+        row.prop(self.properties, 'option_embed_textures')
+        row.enabled = self.properties.option_export_textures
+
+        row = box.row()
+        row.prop(self.properties, 'option_texture_folder')
+        ## }
+
+        layout.separator()
+
+        ## Armature {
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
+
+        row.label(text="ARMATURE", icon="ARMATURE_DATA")
+
+        row = box.row()
+        row.prop(self.properties, 'option_bones')
+        row.prop(self.properties, 'option_skinning')
         ## }
 
         layout.separator()
 
         ## Animation {
-        row = layout.row()
-        row.label(text="- Animation:")
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
 
-        row = layout.row()
+        row.label(text="ANIMATION", icon="POSE_DATA")
+
+        row = box.row()
         row.prop(self.properties, 'option_animation_morph')
-
-        row = layout.row()
         row.prop(self.properties, 'option_blend_shape')
 
-        row = layout.row()
+        row = box.row()
         row.label(text="Skeletal animations:")
-
-        row = layout.row()
         row.prop(self.properties, 'option_animation_skeletal')
 
-        row = layout.row()
-        row.label(text="Keyframe animations:")
-
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_keyframes')
 
-        layout.row()
-        row = layout.row()
+        row = box.row()
+        row.prop(self.properties, 'option_bake_keyframes')
+
+        row = box.row()
         row.prop(self.properties, 'option_influences')
 
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_frame_step')
 
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_frame_index_as_time')
 
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_embed_animation')
-
         ## }
-
-        layout.separator()
-
-        ## Scene {
-        row = layout.row()
-        row.label(text="SCENE:")
-
-        row = layout.row()
-        row.prop(self.properties, 'option_export_scene')
-        row.prop(self.properties, 'option_materials')
-
-        #row = layout.row()
-        #row.prop(self.properties, 'option_embed_geometry')
-
-        row = layout.row()
-        row.prop(self.properties, 'option_lights')
-        row.prop(self.properties, 'option_cameras')
-        ## }
-
-        row = layout.row()
-        row.prop(self.properties, 'option_hierarchy')
 
         layout.separator()
 
         ## Settings {
-        row = layout.row()
-        row.label(text="SETTINGS:")
+        box = layout.box()
+        column = box.column(True)
+        row = column.row(True)
+        row.alignment = 'CENTER'
 
-        row = layout.row()
-        row.prop(self.properties, 'option_maps')
+        row.label(text="SETTINGS", icon="SETTINGS")
 
-        row = layout.row()
-        row.prop(self.properties, 'option_copy_textures')
-
-        row = layout.row()
-        row.prop(self.properties, 'option_texture_folder')
-
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_scale')
 
-        layout.row()
-        row = layout.row()
+        row = box.row()
         row.prop(self.properties, 'option_round_off')
-        row = layout.row()
         row.prop(self.properties, 'option_round_value')
 
-        layout.row()
-        row = layout.row()
-        row.label(text="Logging verbosity:")
+        row = box.row()
+        row.prop(self.properties, 'option_custom_properties')
 
-        row = layout.row()
+        row = box.row()
+        row.prop(self.properties, 'option_indent')
+
+        row = box.row()
+        row.label(text="Logging verbosity:")
         row.prop(self.properties, 'option_logging')
 
-        row = layout.row()
+        row = box.row()
         row.label(text="File compression format:")
-
-        row = layout.row()
         row.prop(self.properties, 'option_compression')
-
-        row = layout.row()
-        row.prop(self.properties, 'option_indent')
         ## }
 
         ## Operators {

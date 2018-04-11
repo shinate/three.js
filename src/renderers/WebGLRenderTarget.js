@@ -1,3 +1,8 @@
+import { EventDispatcher } from '../core/EventDispatcher.js';
+import { Texture } from '../textures/Texture.js';
+import { LinearFilter } from '../constants.js';
+import { Vector4 } from '../math/Vector4.js';
+
 /**
  * @author szimek / https://github.com/szimek/
  * @author alteredq / http://alteredqualia.com/
@@ -9,32 +14,33 @@
  * Texture parameters for an auto-generated target texture
  * depthBuffer/stencilBuffer: Booleans to indicate if we should generate these buffers
 */
-THREE.WebGLRenderTarget = function ( width, height, options ) {
-
-	this.uuid = THREE.Math.generateUUID();
+function WebGLRenderTarget( width, height, options ) {
 
 	this.width = width;
 	this.height = height;
 
-	this.scissor = new THREE.Vector4( 0, 0, width, height );
+	this.scissor = new Vector4( 0, 0, width, height );
 	this.scissorTest = false;
 
-	this.viewport = new THREE.Vector4( 0, 0, width, height );
+	this.viewport = new Vector4( 0, 0, width, height );
 
 	options = options || {};
 
-	if ( options.minFilter === undefined ) options.minFilter = THREE.LinearFilter;
+	if ( options.minFilter === undefined ) options.minFilter = LinearFilter;
 
-	this.texture = new THREE.Texture( undefined, undefined, options.wrapS, options.wrapT, options.magFilter, options.minFilter, options.format, options.type, options.anisotropy );
+	this.texture = new Texture( undefined, undefined, options.wrapS, options.wrapT, options.magFilter, options.minFilter, options.format, options.type, options.anisotropy, options.encoding );
 
 	this.depthBuffer = options.depthBuffer !== undefined ? options.depthBuffer : true;
 	this.stencilBuffer = options.stencilBuffer !== undefined ? options.stencilBuffer : true;
+	this.depthTexture = options.depthTexture !== undefined ? options.depthTexture : null;
 
-};
+}
 
-THREE.WebGLRenderTarget.prototype = {
+WebGLRenderTarget.prototype = Object.assign( Object.create( EventDispatcher.prototype ), {
 
-	constructor: THREE.WebGLRenderTarget,
+	constructor: WebGLRenderTarget,
+
+	isWebGLRenderTarget: true,
 
 	setSize: function ( width, height ) {
 
@@ -69,8 +75,7 @@ THREE.WebGLRenderTarget.prototype = {
 
 		this.depthBuffer = source.depthBuffer;
 		this.stencilBuffer = source.stencilBuffer;
-
-		this.shareDepthFrom = source.shareDepthFrom;
+		this.depthTexture = source.depthTexture;
 
 		return this;
 
@@ -82,6 +87,7 @@ THREE.WebGLRenderTarget.prototype = {
 
 	}
 
-};
+} );
 
-THREE.EventDispatcher.prototype.apply( THREE.WebGLRenderTarget.prototype );
+
+export { WebGLRenderTarget };

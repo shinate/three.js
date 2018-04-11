@@ -104,12 +104,10 @@ Menubar.Edit = function ( editor ) {
 
 	var option = new UI.Row();
 	option.setClass( 'option' );
-	option.setTextContent( 'Delete' );
+	option.setTextContent( 'Delete (Del)' );
 	option.onClick( function () {
 
 		var object = editor.selected;
-
-		if ( confirm( 'Delete ' + object.name + '?' ) === false ) return;
 
 		var parent = object.parent;
 		if ( parent === undefined ) return; // avoid deleting the camera or scene

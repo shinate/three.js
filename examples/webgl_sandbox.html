@@ -32,9 +32,9 @@
 	</head>
 
 	<body>
-		<div id="info"><a href="http://threejs.org" target="_blank">three.js</a> - webgl sandbox.</div>
+		<div id="info"><a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> - webgl sandbox.</div>
 
-		<script src="../build/three.min.js"></script>
+		<script src="../build/three.js"></script>
 
 		<script src="js/shaders/BasicShader.js"></script>
 
@@ -91,8 +91,8 @@
 					new THREE.ShaderMaterial( { uniforms: uniforms, vertexShader: vertexShader, fragmentShader: fragmentShader, transparent: true } ),
 					new THREE.MeshLambertMaterial( { map: texture2 } ),
 					new THREE.MeshLambertMaterial( { color: 0xdddddd } ),
-					new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x009900, shininess: 30, shading: THREE.FlatShading } ),
-					new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x009900, shininess: 30, shading: THREE.SmoothShading } )
+					new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x009900, shininess: 30, flatShading: true } ),
+					new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x009900, shininess: 30 } )
 
 				];
 
@@ -131,10 +131,7 @@
 				if ( statsEnabled ) {
 
 					stats = new Stats();
-					stats.domElement.style.position = 'absolute';
-					stats.domElement.style.top = '0px';
-					stats.domElement.style.zIndex = 100;
-					container.appendChild( stats.domElement );
+					container.appendChild( stats.dom );
 
 				}
 
